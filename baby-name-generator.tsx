@@ -43,7 +43,7 @@ export default function BabyNameGenerator() {
         throw new Error(`Server responded with status: ${res.status}`);
 
       const data = await res.json();
-
+      console.log("ODPOWIEDŹ Z API:", data);
       if (Array.isArray(data.namesWithMeanings)) {
         setNames(data.namesWithMeanings);
       } else {
