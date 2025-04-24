@@ -10,16 +10,17 @@ export async function POST(req: Request) {
     const { gender, theme, count } = await req.json();
 
     const prompt = `
-    Generate a list of ${count || 10} unique ${
-      gender === "neutral" ? "" : gender === "female" ? "female" : "male"
-    } baby names.
-    Each name must be accompanied by a short 1–2 sentence summary that includes its origin and general meaning.
-    Return only a valid JSON array, like this:
+    Generate a list of ${
+      count || 10
+    } unique baby names that are inspired by the theme "${theme}" and have English origin.
+    Each name must be accompanied by a short 1–2 sentence summary that explains the name's origin and meaning.
+    Only include names that are truly of English linguistic or historical origin.
+    Return only a valid JSON array like this:
     [
-      { "name": "Aveline", "summary": "A French name from the 11th century, symbolizing strength and light." },
+      { "name": "Ash", "summary": "An English nature-inspired name referring to the ash tree, symbolizing resilience and wisdom." },
       ...
     ]
-    Do not include any introductory text, comments or explanation. Only return raw JSON.
+    Do not include explanations or extra text — return raw JSON only.
 `;
 
     const response = await openai.chat.completions.create({
