@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     });
 
     const text = response.choices[0]?.message?.content || "";
-
+    console.log("🔍 Odpowiedź z OpenAI:\n", text);
     return NextResponse.json({ namesWithMeanings: JSON.parse(text) });
   } catch (error) {
     console.error("Błąd generowania:", error);
