@@ -12,13 +12,14 @@ export async function POST(req: Request) {
     const prompt = `
     Generate a list of ${count || 10} unique ${
       gender === "neutral" ? "" : gender === "female" ? "female" : "male"
-    } baby names with a short summary (1–2 sentences max).
-    Each summary should include the name's origin and general meaning.
-    Return the data as JSON in this format:
+    } baby names.
+    Each name must be accompanied by a short 1–2 sentence summary that includes its origin and general meaning.
+    Return only a valid JSON array, like this:
     [
       { "name": "Aveline", "summary": "A French name from the 11th century, symbolizing strength and light." },
       ...
     ]
+    Do not include any introductory text, comments or explanation. Only return raw JSON.
 `;
 
     const response = await openai.chat.completions.create({
