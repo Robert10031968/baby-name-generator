@@ -10,15 +10,15 @@ export async function POST(req: Request) {
     const { gender, theme, count } = await req.json();
 
     const prompt = `
-Wygeneruj listę ${count || 10} unikalnych imion ${
-      gender === "neutral" ? "" : gender === "female" ? "żeńskich" : "męskich"
-    } z krótkim opisem (maksymalnie 1–2 zdania).
-Opis powinien zawierać pochodzenie imienia oraz jego ogólne znaczenie.
-Zwróć dane w formacie JSON:
-[
-  { "name": "Aveline", "summary": "Francuskie imię z XI wieku, symbolizujące siłę i światło." },
-  ...
-]
+    Generate a list of ${count || 10} unique ${
+      gender === "neutral" ? "" : gender === "female" ? "female" : "male"
+    } baby names with a short summary (1–2 sentences max).
+    Each summary should include the name's origin and general meaning.
+    Return the data as JSON in this format:
+    [
+      { "name": "Aveline", "summary": "A French name from the 11th century, symbolizing strength and light." },
+      ...
+    ]
 `;
 
     const response = await openai.chat.completions.create({
