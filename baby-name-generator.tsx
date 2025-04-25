@@ -33,11 +33,14 @@ export default function BabyNameGenerator() {
     setError("");
 
     try {
-      const res = await fetch("/api/generate-names", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme, gender }),
-      });
+      const res = await fetch(
+        "https://47431d51-4074-4bc9-a8ea-509f735d04a0-00-67m2m16nds6s.riker.replit.dev/webhook/babyname",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ theme, gender, count: 10 }),
+        }
+      );
 
       if (!res.ok)
         throw new Error(`Server responded with status: ${res.status}`);
