@@ -149,8 +149,8 @@ export default function BabyNameGenerator() {
                     <div className="flex justify-between items-center mb-2">
                       <h3 className="text-lg font-medium">{nameData.name}</h3>
                       <HeartButton
-                        isFavorite={false} // You can connect with favorites state
-                        onClick={() => toast({ title: "Add to favorites" })} // Placeholder action
+                       isFavorite={false}
+                       onClick={() => toast({ title: "Add to favorites" })}
                       />
                     </div>
                     {nameData.summary && (
