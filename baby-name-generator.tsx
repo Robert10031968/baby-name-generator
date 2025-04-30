@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,10 +33,13 @@ export default function BabyNameGenerator() {
     setError("");
 
     try {
-      const res = await fetch("https://babyname-agent-railway-production.up.railway.app/webhook/babyname", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme, gender, count: 10 }),
+      const res = await fetch(
+        "https://babyname-agent-railway-production.up.railway.app/webhook/babyname",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ theme, gender, count: 10 }),
+        }
       );
 
       if (!res.ok)
@@ -130,10 +133,10 @@ export default function BabyNameGenerator() {
               className="w-full bg-pink-500 hover:bg-pink-600 text-white"
             >
               {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating
-                  Names...
-                </>
+                <div className="flex items-center justify-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <span>Generating Names...</span>
+                </div>
               ) : (
                 "Generate Names"
               )}
@@ -149,8 +152,8 @@ export default function BabyNameGenerator() {
                     <div className="flex justify-between items-center mb-2">
                       <h3 className="text-lg font-medium">{nameData.name}</h3>
                       <HeartButton
-                       isFavorite={false}
-                       onClick={() => toast({ title: "Add to favorites" })}
+                        isFavorite={false}
+                        onClick={() => toast({ title: "Add to favorites" })}
                       />
                     </div>
                     {nameData.summary && (
@@ -171,7 +174,7 @@ export default function BabyNameGenerator() {
             favorites={[]}
             loading={false}
             onRefresh={() => {}}
-            onDelete={() => {}}
+            onDelete={async (id: string) => {}}
             usingLocalStorage={false}
           />
         </TabsContent>
