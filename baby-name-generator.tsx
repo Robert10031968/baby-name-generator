@@ -37,13 +37,16 @@ export default function BabyNameGenerator() {
         "https://babyname-agent-railway-production.up.railway.app/webhook/babyname",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({ theme, gender, count: 10 }),
         }
       );
 
-      if (!res.ok)
+      if (!res.ok) {
         throw new Error(`Server responded with status: ${res.status}`);
+      }
 
       const data = await res.json();
       console.log("ODPOWIEDŹ Z API:", data);
