@@ -62,6 +62,38 @@ export default function BabyNameGenerator() {
       setLoading(false);
     }
   };
+  const saveFavorite = async (nameData: NameWithMeaning) => {
+    try {
+      const res = await fetch("/api/save-favorite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: nameData.name,
+          gender,
+          theme,
+          summary: nameData.summary,
+          email: "guest@example.com", // lub autentyczny email, jeśli logujesz użytkownika
+        }),
+      });
+
+      const result = await res.json();
+
+      if (res.ok && result.success) {
+        toast({
+          title: `"${nameData.name}" added to favorites!`,
+        });
+      } else {
+        throw new Error(result.error || "Unknown error");
+      }
+    } catch (error) {
+      console.error("Failed to save favorite:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save favorite.",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="max-w-xl mx-auto p-6 bg-gradient-to-b from-pink-50 to-blue-50 rounded-xl shadow-sm">
@@ -156,7 +188,7 @@ export default function BabyNameGenerator() {
                       <h3 className="text-lg font-medium">{nameData.name}</h3>
                       <HeartButton
                         isFavorite={false}
-                        onClick={() => toast({ title: "Add to favorites" })}
+                        onClick={() => saveFavorite(nameData)}
                       />
                     </div>
                     {nameData.summary && (
