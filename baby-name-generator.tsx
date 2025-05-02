@@ -71,13 +71,13 @@ export default function BabyNameGenerator() {
           name: nameData.name,
           gender,
           theme,
-          summary: nameData.summary,
-          email: "guest@example.com", // lub autentyczny email, jeśli logujesz użytkownika
+          user_email: "guest@example.com", // <- poprawna nazwa
+          description: nameData.summary || "", // <- zamiast summary
         }),
       });
-
+  
       const result = await res.json();
-
+  
       if (res.ok && result.success) {
         toast({
           title: `"${nameData.name}" added to favorites!`,
@@ -86,13 +86,14 @@ export default function BabyNameGenerator() {
         throw new Error(result.error || "Unknown error");
       }
     } catch (error) {
-      console.error("Failed to save favorite:", error);
+      console.error("❌ Failed to save favorite:", error);
       toast({
         title: "Error",
         description: "Failed to save favorite.",
         variant: "destructive",
       });
     }
+  };
   };
 
   return (
