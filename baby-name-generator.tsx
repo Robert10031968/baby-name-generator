@@ -62,6 +62,7 @@ export default function BabyNameGenerator() {
       setLoading(false);
     }
   };
+
   const saveFavorite = async (nameData: NameWithMeaning) => {
     try {
       const res = await fetch("/api/save-favorite", {
@@ -71,13 +72,13 @@ export default function BabyNameGenerator() {
           name: nameData.name,
           gender,
           theme,
-          user_email: "guest@example.com", // <- poprawna nazwa
-          description: nameData.summary || "", // <- zamiast summary
+          user_email: "guest@example.com",
+          description: nameData.summary || "",
         }),
       });
-  
+
       const result = await res.json();
-  
+
       if (res.ok && result.success) {
         toast({
           title: `"${nameData.name}" added to favorites!`,
@@ -93,7 +94,6 @@ export default function BabyNameGenerator() {
         variant: "destructive",
       });
     }
-  };
   };
 
   return (
