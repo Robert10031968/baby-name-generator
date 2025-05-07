@@ -26,7 +26,10 @@ export async function POST(req: Request) {
     });
 
     if (!name) {
-      return new Response(JSON.stringify({ error: "Name is required" }), { status: 400 });
+      return new Response(JSON.stringify({ error: "Name is required" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const supabase = createServerSupabaseClient();
@@ -44,6 +47,7 @@ export async function POST(req: Request) {
     if (poeticDescription) favoriteData.poeticDescription = poeticDescription;
     if (description) favoriteData.description = description;
 
+    // Aktualizacja jeśli jest ID
     if (id) {
       const { data, error } = await supabase
         .from("favorites")
@@ -53,12 +57,19 @@ export async function POST(req: Request) {
 
       if (error) {
         console.error("❌ [UPDATE] Error updating favorite:", error.message || error);
-        return new Response(JSON.stringify({ error: "Failed to update favorite" }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Failed to update favorite" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
       }
 
-      return new Response(JSON.stringify({ success: true, data }));
+      return new Response(JSON.stringify({ success: true, data }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
+    // INSERT jeśli brak ID
     const { error: inspectError, data: inspectData } = await supabase.from("favorites").select("*").limit(1);
 
     if (!inspectError && inspectData && inspectData.length > 0) {
@@ -83,10 +94,16 @@ export async function POST(req: Request) {
 
       if (error) {
         console.error("❌ [INSERT] Error saving favorite:", error.message || error);
-        return new Response(JSON.stringify({ error: "Failed to save favorite" }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Failed to save favorite" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
       }
 
-      return new Response(JSON.stringify({ success: true, data }));
+      return new Response(JSON.stringify({ success: true, data }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     } else {
       favoriteData.created_at = new Date().toISOString();
 
@@ -94,13 +111,22 @@ export async function POST(req: Request) {
 
       if (error) {
         console.error("❌ [FALLBACK] Error saving favorite:", error.message || error);
-        return new Response(JSON.stringify({ error: "Failed to save favorite" }), { status: 500 });
+        return new Response(JSON.stringify({ error: "Failed to save favorite" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
       }
 
-      return new Response(JSON.stringify({ success: true, data }));
+      return new Response(JSON.stringify({ success: true, data }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ [CATCH] Unexpected error saving favorite:", error.message || error);
-    return new Response(JSON.stringify({ error: "Failed to save favorite" }), { status: 500 });
+    return new Response(JSON.stringify({ error: "Failed to save favorite" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }
