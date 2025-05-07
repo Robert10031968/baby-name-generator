@@ -34,7 +34,7 @@ export default function BabyNameGenerator() {
 
     try {
       const res = await fetch(
-        "https://babyname-agent-railway-production.up.railway.app/webhook/babyname",
+        "https://babyname-agent-railway-production.up.railway.app",
         {
           method: "POST",
           headers: {
