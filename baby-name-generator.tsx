@@ -31,10 +31,10 @@ export default function BabyNameGenerator() {
     setLoading(true);
     setNames([]);
     setError("");
-
+  
     try {
       const res = await fetch(
-        "https://babyname-agent-railway-production.up.railway.app",
+        "https://babyname-agent-railway-production.up.railway.app/webhook/babyname",
         {
           method: "POST",
           headers: {
@@ -43,11 +43,11 @@ export default function BabyNameGenerator() {
           body: JSON.stringify({ theme, gender, count: 10 }),
         }
       );
-
+  
       if (!res.ok) {
         throw new Error(`Server responded with status: ${res.status}`);
       }
-
+  
       const data = await res.json();
       console.log("ODPOWIEDŹ Z API:", data);
       if (Array.isArray(data.namesWithMeanings)) {
