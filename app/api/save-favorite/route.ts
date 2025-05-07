@@ -34,7 +34,7 @@ export async function POST(req: Request) {
 
     const supabase = createServerSupabaseClient();
 
-    const favoriteData = {
+    const favoriteData: Record<string, any> = {
       name,
       user_email: email,
     };
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     if (poeticDescription) favoriteData.poeticDescription = poeticDescription;
     if (description) favoriteData.description = description;
 
-    // Aktualizacja jeśli jest ID
+    // UPDATE jeśli jest ID
     if (id) {
       const { data, error } = await supabase
         .from("favorites")
@@ -74,7 +74,7 @@ export async function POST(req: Request) {
 
     if (!inspectError && inspectData && inspectData.length > 0) {
       const sampleRow = inspectData[0];
-      const newFavoriteData = {
+      const newFavoriteData: Record<string, any> = {
         name,
         created_at: new Date().toISOString(),
         user_email: email,
