@@ -26,12 +26,12 @@ export async function POST(req: Request) {
     });
 
     if (!name) {
-      return Response.json({ error: "Name is required" }, { status: 400 });
+      return new Response(JSON.stringify({ error: "Name is required" }), { status: 400 });
     }
 
-    const supaba = createServerSupabaseClient();
+    const supabase = createServerSupabaseClient();
 
-    const favoriteData: any = {
+    const favoriteData = {
       name,
       user_email: email,
     };
@@ -44,7 +44,6 @@ export async function POST(req: Request) {
     if (poeticDescription) favoriteData.poeticDescription = poeticDescription;
     if (description) favoriteData.description = description;
 
-    // 🔄 UPDATE jeśli istnieje ID
     if (id) {
       const { data, error } = await supabase
         .from("favorites")
@@ -54,18 +53,17 @@ export async function POST(req: Request) {
 
       if (error) {
         console.error("❌ [UPDATE] Error updating favorite:", error.message || error);
-        return Response.json({ error: "Failed to update favorite" }, { status: 500 });
+        return new Response(JSON.stringify({ error: "Failed to update favorite" }), { status: 500 });
       }
 
-      return Response.json({ success: true, data });
+      return new Response(JSON.stringify({ success: true, data }));
     }
 
-    // 🔄 INSERT nowego rekordu
     const { error: inspectError, data: inspectData } = await supabase.from("favorites").select("*").limit(1);
 
     if (!inspectError && inspectData && inspectData.length > 0) {
       const sampleRow = inspectData[0];
-      const newFavoriteData: any = {
+      const newFavoriteData = {
         name,
         created_at: new Date().toISOString(),
         user_email: email,
@@ -85,25 +83,24 @@ export async function POST(req: Request) {
 
       if (error) {
         console.error("❌ [INSERT] Error saving favorite:", error.message || error);
-        return Response.json({ error: "Failed to save favorite" }, { status: 500 });
+        return new Response(JSON.stringify({ error: "Failed to save favorite" }), { status: 500 });
       }
 
-      return Response.json({ succes true, data });
+      return new Response(JSON.stringify({ success: true, data }));
     } else {
-      // fallback insert
       favoriteData.created_at = new Date().toISOString();
 
       const { data, error } = await supabase.from("favorites").insert([favoriteData]).select();
 
       if (error) {
         console.error("❌ [FALLBACK] Error saving favorite:", error.message || error);
-        return Response.json({ error: "Failed to save favorite" }, { status: 500 });
+        return new Response(JSON.stringify({ error: "Failed to save favorite" }), { status: 500 });
       }
 
-      return Response.json({ success: true, data });
+      return new Response(JSON.stringify({ success: true, data }));
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error("❌ [CATCH] Unexpected error saving favorite:", error.message || error);
-    return Response.json({ error: "Failed to save favorite" }, { status: 500 });
+    return new Response(JSON.stringify({ error: "Failed to save favorite" }), { status: 500 });
   }
 }
