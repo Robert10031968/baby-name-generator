@@ -37,8 +37,6 @@ export async function POST(req: Request) {
       });
     }
 
-    const supabase = createServerSupabaseClient();
-
     const favoriteData: Record<string, any> = {
       name,
       user_email: email,
