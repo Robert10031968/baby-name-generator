@@ -1,6 +1,7 @@
 "use client";
-// trigger redeploy
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +20,25 @@ interface NameWithMeaning {
   summary?: string;
 }
 
+interface Favorite {
+  id: string;
+  name: string;
+  gender?: string;
+  theme?: string;
+  created_at: string;
+  user_email?: string;
+  meaning?: string;
+  origin?: string;
+  informativeDescription?: string;
+  poeticDescription?: string;
+  description?: string;
+}
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
 export default function BabyNameGenerator() {
   const [theme, setTheme] = useState("");
   const [gender, setGender] = useState("neutral");
@@ -28,30 +48,30 @@ export default function BabyNameGenerator() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
 
-const loadFavoritesFromSupabase = async () => {
-  setFavoritesLoading(true);
-  try {
-    const { data, error } = await supabase
-      .from("favorites")
-      .select("*")
-      .order("created_at", { ascending: false });
+  const loadFavoritesFromSupabase = async () => {
+    setFavoritesLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("favorites")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("❌ Failed to fetch favorites:", error.message);
-    } else {
-      console.log("✅ Fetched favorites:", data); // <-- ten log pojawi się w F12
-      setFavorites(data || []);
+      if (error) {
+        console.error("❌ Failed to fetch favorites:", error.message);
+      } else {
+        console.log("✅ Fetched favorites:", data);
+        setFavorites(data || []);
+      }
+    } catch (err) {
+      console.error("❌ Unexpected error:", err);
+    } finally {
+      setFavoritesLoading(false);
     }
-  } catch (err) {
-    console.error("❌ Unexpected error:", err);
-  } finally {
-    setFavoritesLoading(false);
-  }
-};
+  };
 
-useEffect(() => {
-  loadFavoritesFromSupabase();
-}, []);
+  useEffect(() => {
+    loadFavoritesFromSupabase();
+  }, []);
 
   const generateNames = async () => {
     console.log("▶️ generateNames() wywołana. theme:", theme, "gender:", gender);
@@ -59,27 +79,28 @@ useEffect(() => {
     setLoading(true);
     setNames([]);
     setError("");
-  
-    console.log("🛰️ Wysyłam fetch do AI...");
-  
+
     try {
-      const res = await fetch("https://babyname-agent-railway-production.up.railway.app/webhook/babyname", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ theme, gender, count: 10 }),
-      });
-  
+      const res = await fetch(
+        "https://babyname-agent-railway-production.up.railway.app/webhook/babyname",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ theme, gender, count: 10 }),
+        }
+      );
+
       console.log("✅ Fetch zakończony:", res.status);
-  
+
       if (!res.ok) {
         throw new Error(`Server responded with status: ${res.status}`);
       }
-  
+
       const data = await res.json();
       console.log("📦 ODPOWIEDŹ Z API:", data);
-  
+
       if (Array.isArray(data.namesWithMeanings)) {
         setNames(data.namesWithMeanings);
       } else {
@@ -113,6 +134,7 @@ useEffect(() => {
         toast({
           title: `"${nameData.name}" added to favorites!`,
         });
+        loadFavoritesFromSupabase();
       } else {
         throw new Error(result.error || "Unknown error");
       }
@@ -128,12 +150,9 @@ useEffect(() => {
 
   return (
     <div className="max-w-xl mx-auto p-6 bg-gradient-to-b from-pink-50 to-blue-50 rounded-xl shadow-sm">
-      <h1 className="text-3xl font-bold mb-4 text-pink-600">
-        AI Baby Name Generator
-      </h1>
+      <h1 className="text-3xl font-bold mb-4 text-pink-600">AI Baby Name Generator</h1>
       <p className="text-blue-700 mb-6">
-        Discover perfect baby names with short insights. Add your favorites for
-        more!
+        Discover perfect baby names with short insights. Add your favorites for more!
       </p>
 
       <Tabs defaultValue="generator" className="mb-6">
@@ -217,10 +236,7 @@ useEffect(() => {
                   <CardContent className="p-4">
                     <div className="flex justify-between items-center mb-2">
                       <h3 className="text-lg font-medium">{nameData.name}</h3>
-                      <HeartButton
-                        isFavorite={false}
-                        onClick={() => saveFavorite(nameData)}
-                      />
+                      <HeartButton isFavorite={false} onClick={() => saveFavorite(nameData)} />
                     </div>
                     {nameData.summary && (
                       <div className="bg-pink-50 rounded-md p-3 text-sm border border-pink-100">
@@ -236,22 +252,22 @@ useEffect(() => {
         </TabsContent>
 
         <TabsContent value="favorites">
-  <FavoritesList
-    favorites={favorites}
-    loading={favoritesLoading}
-    onRefresh={loadFavoritesFromSupabase}
-    onDelete={async (id: string) => {
-      const { error } = await supabase.from("favorites").delete().eq("id", id);
-      if (!error) {
-        loadFavoritesFromSupabase();
-      } else {
-        console.error("❌ Failed to delete favorite:", error.message);
-      }
-    }}
-    usingLocalStorage={false}
-  />
-</TabsContent>
+          <FavoritesList
+            favorites={favorites}
+            loading={favoritesLoading}
+            onRefresh={loadFavoritesFromSupabase}
+            onDelete={async (id: string) => {
+              const { error } = await supabase.from("favorites").delete().eq("id", id);
+              if (!error) {
+                loadFavoritesFromSupabase();
+              } else {
+                console.error("❌ Failed to delete favorite:", error.message);
+              }
+            }}
+            usingLocalStorage={false}
+          />
+        </TabsContent>
       </Tabs>
     </div>
   );
-}
+} 
