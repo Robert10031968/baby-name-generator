@@ -25,6 +25,33 @@ export default function BabyNameGenerator() {
   const [names, setNames] = useState<NameWithMeaning[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
+
+const loadFavoritesFromSupabase = async () => {
+  setFavoritesLoading(true);
+  try {
+    const { data, error } = await supabase
+      .from("favorites")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("❌ Failed to fetch favorites:", error.message);
+    } else {
+      console.log("✅ Fetched favorites:", data); // <-- ten log pojawi się w F12
+      setFavorites(data || []);
+    }
+  } catch (err) {
+    console.error("❌ Unexpected error:", err);
+  } finally {
+    setFavoritesLoading(false);
+  }
+};
+
+useEffect(() => {
+  loadFavoritesFromSupabase();
+}, []);
 
   const generateNames = async () => {
     console.log("▶️ generateNames() wywołana. theme:", theme, "gender:", gender);
@@ -209,21 +236,21 @@ export default function BabyNameGenerator() {
         </TabsContent>
 
         <TabsContent value="favorites">
-          <FavoritesList
-            favorites={favorites}
-            loading={favoritesLoading}
-            onRefresh={loadFavoritesFromSupabase}
-            onDelete={async (id: string) => {
-              const { error } = await supabase.from("favorites").delete().eq("id", id);
-              if (!error) {
-                loadFavoritesFromSupabase();
-              } else {
-                console.error("❌ Failed to delete favorite:", error.message);
-              }
-            }}
-            usingLocalStorage={false}
-          />
-        </TabsContent>
+  <FavoritesList
+    favorites={favorites}
+    loading={favoritesLoading}
+    onRefresh={loadFavoritesFromSupabase}
+    onDelete={async (id: string) => {
+      const { error } = await supabase.from("favorites").delete().eq("id", id);
+      if (!error) {
+        loadFavoritesFromSupabase();
+      } else {
+        console.error("❌ Failed to delete favorite:", error.message);
+      }
+    }}
+    usingLocalStorage={false}
+  />
+</TabsContent>
       </Tabs>
     </div>
   );
