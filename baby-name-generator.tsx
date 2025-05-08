@@ -210,10 +210,17 @@ export default function BabyNameGenerator() {
 
         <TabsContent value="favorites">
           <FavoritesList
-            favorites={[]}
-            loading={false}
-            onRefresh={() => {}}
-            onDelete={async (id: string) => {}}
+            favorites={favorites}
+            loading={favoritesLoading}
+            onRefresh={loadFavoritesFromSupabase}
+            onDelete={async (id: string) => {
+              const { error } = await supabase.from("favorites").delete().eq("id", id);
+              if (!error) {
+                loadFavoritesFromSupabase();
+              } else {
+                console.error("❌ Failed to delete favorite:", error.message);
+              }
+            }}
             usingLocalStorage={false}
           />
         </TabsContent>
