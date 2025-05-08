@@ -32,6 +32,8 @@ export default function BabyNameGenerator() {
     setNames([]);
     setError("");
   
+    console.log("🛰️ Wysyłam fetch do AI...");
+  
     try {
       const res = await fetch("https://babyname-agent-railway-production.up.railway.app/webhook/babyname", {
         method: "POST",
@@ -41,19 +43,22 @@ export default function BabyNameGenerator() {
         body: JSON.stringify({ theme, gender, count: 10 }),
       });
   
+      console.log("✅ Fetch zakończony:", res.status);
+  
       if (!res.ok) {
         throw new Error(`Server responded with status: ${res.status}`);
       }
   
       const data = await res.json();
-      console.log("ODPOWIEDŹ Z API:", data);
+      console.log("📦 ODPOWIEDŹ Z API:", data);
+  
       if (Array.isArray(data.namesWithMeanings)) {
         setNames(data.namesWithMeanings);
       } else {
         setError("Unexpected response format. Please try again.");
       }
     } catch (error) {
-      console.error("Failed to generate names:", error);
+      console.error("❌ Błąd podczas generowania imion:", error);
       setError("Failed to generate names. Please try again.");
     } finally {
       setLoading(false);
