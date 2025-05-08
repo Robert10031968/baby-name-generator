@@ -27,6 +27,7 @@ export default function BabyNameGenerator() {
   const [error, setError] = useState("");
 
   const generateNames = async () => {
+    console.log("▶️ generateNames() wywołana. theme:", theme, "gender:", gender);
     if (!theme) return;
     setLoading(true);
     setNames([]);
