@@ -10,10 +10,16 @@ export default function Header() {
   return (
     <header className="bg-white shadow-md sticky top-0 z-50 transition-all duration-300">
       <div className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto">
-        <div className="flex items-center space-x-3">
-          <Image src="/nomena_logo.png" alt="Nomena Logo" width={40} height={40} />
-          <span className="text-xl font-bold text-pink-600">nomena.io</span>
-        </div>
+        <Link href="/" className="flex items-center">
+  <Image
+        src="/nomena_logo.png"
+        alt="Nomena Logo"
+        width={56}
+        height={56}
+        className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 transition-all duration-300"
+        priority
+  />
+  </Link>
 
         {/* Desktop menu */}
         <nav className="hidden md:flex space-x-6 text-sm text-gray-600">
