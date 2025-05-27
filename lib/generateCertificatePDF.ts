@@ -11,7 +11,7 @@ export async function generateCertificatePDF({
   name,
   history,
   meaning,
-  logoUrl = "/nomena_logo.png", // domyślnie lokalne logo
+  logoUrl = "/nomena_logo.png",
 }: CertificateData) {
   const doc = new jsPDF({
     orientation: "portrait",
@@ -19,68 +19,75 @@ export async function generateCertificatePDF({
     format: "a4",
   });
 
-  // Wstawiamy gotowe tło graficzne
-  const bgImage = await loadImageAsBase64("/certificate_bg.png");
-  doc.addImage(bgImage, "PNG", 0, 0, 210, 297); // pełna strona A4
-
-  // Ramka
-  doc.setDrawColor(170, 170, 220); // Jasna niebiesko-fioletowa
-  doc.setLineWidth(1.5);
-  doc.rect(15, 15, 180, 267);
+  // Tło
+  const bgImage = await loadImageAsBase64("/certificate_bg_clean.png");
+  doc.addImage(bgImage, "PNG", 0, 0, 210, 297);
 
   // Logo
   try {
     const logoImage = await loadImageAsBase64(logoUrl);
-    doc.addImage(logoImage, "PNG", 85, 18, 40, 20);
-  } catch (error) {
-    console.error("Could not load logo", error);
+    doc.addImage(logoImage, "PNG", 83, 12, 44, 22);
+  } catch (err) {
+    console.warn("⚠️ Logo nie załadowane");
   }
 
   // Tytuł
-  doc.setFontSize(26);
-  doc.setTextColor(50, 50, 100);
-  doc.text("Certificate of Name", 105, 55, { align: "center" });
+  doc.setFontSize(24);
+  doc.setTextColor(50, 70, 110);
+  doc.text("Name Certificate", 105, 50, { align: "center" });
 
   // Imię
-  doc.setFontSize(22);
+  doc.setFontSize(36);
   doc.setTextColor(30, 30, 30);
   doc.text(name, 105, 72, { align: "center" });
 
-  let currentY = 92;
+  let currentY = 90;
 
-  // Sekcja: History
-  doc.setFontSize(16);
-  doc.setTextColor(70, 70, 120);
-  doc.text("History:", 20, currentY);
+  // History
+  doc.setFontSize(24);
+  doc.setTextColor(60, 80, 120);
+  doc.text("History:", 105, currentY, { align: "center" });
 
   doc.setFontSize(12);
-  doc.setTextColor(60, 60, 60);
+  doc.setTextColor(50, 50, 50);
   const historyLines = doc.splitTextToSize(history, 170);
-  doc.text(historyLines, 20, currentY + 8);
-  currentY += 8 + historyLines.length * 6;
+  doc.text(historyLines, 20, currentY + 10);
+  currentY += 10 + historyLines.length * 6;
 
-  // Sekcja: Meaning
-  doc.setFontSize(16);
-  doc.setTextColor(70, 70, 120);
-  doc.text("Meaning:", 20, currentY);
+  // Meaning
+  doc.setFontSize(24);
+  doc.setTextColor(60, 80, 120);
+  doc.text("Meaning:", 105, currentY - 2, { align: "center" });
 
   doc.setFontSize(12);
-  doc.setTextColor(60, 60, 60);
+  doc.setTextColor(50, 50, 50);
   const meaningLines = doc.splitTextToSize(meaning, 170);
-  doc.text(meaningLines, 20, currentY + 8);
-  currentY += 8 + meaningLines.length * 6;
+  doc.text(meaningLines, 20, currentY + 10);
+  currentY += 10 + meaningLines.length * 6;
 
-  // Data
-  const today = new Date().toLocaleDateString();
-  doc.setFontSize(10);
-  doc.setTextColor(100, 100, 100);
-  doc.text(`Generated on: ${today}`, 20, 282);
+  // Stopka — data i branding
+  const today = new Date();
+  const formattedDate = today.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
 
-  // Stopka
   doc.setFontSize(10);
   doc.setTextColor(90, 90, 90);
-  doc.text("Generated with ❤️ by nomena.io", 105, 290, { align: "center" });
+  doc.text(`Generated on ${formattedDate}`, 20, 276); // lewa
 
+  try {
+    const heartImage = await loadImageAsBase64("/heart_icon_final.png");
+    doc.addImage(heartImage, "PNG", 165, 272.5, 4.5, 4.5); // serduszko
+  } catch (err) {
+    console.warn("⚠️ Serce nie załadowane");
+  }
+
+  doc.text("Generated with", 140, 276);
+  doc.text("by nomena.io", 170, 276);
+
+  // Zapis PDF
   doc.save(`${name}_certificate.pdf`);
 }
 

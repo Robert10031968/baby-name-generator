@@ -1,24 +1,19 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import { ClientThemeProvider } from "@/components/client-theme-provider";
-import { Toaster } from "@/components/ui/toaster";
-import "@/app/globals.css";
+import "@/styles/globals.css";
+import Header from "@/components/Header";
 
-const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "AI Baby Name Generator",
-  description: "Discover the perfect baby name with beautiful meaning and poetry.",
+export const metadata = {
+  title: "Nomena | Baby Name Generator",
+  description: "Discover meaningful baby names and generate beautiful certificates.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ClientThemeProvider>
+    <html lang="en">
+      <body className="bg-pink-50 text-gray-800">
+        <Header />
+        <main className="max-w-3xl mx-auto px-4 py-6">
           {children}
-          <Toaster />
-        </ClientThemeProvider>
+        </main>
       </body>
     </html>
   );

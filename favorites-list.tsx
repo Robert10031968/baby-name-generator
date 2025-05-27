@@ -171,12 +171,21 @@ useEffect(() => {
   };
 
   const handleGenerateCertificate = async (favorite: Favorite) => {
-  // 🔧 Tymczasowo wyłączony limit certyfikatów
+  const history =
+    favorite.description ||
+    favorite.informativeDescription ||
+    "No historical context available.";
+
+  const meaning =
+    favorite.meaning ||
+    favorite.poeticDescription ||
+    "This name carries a poetic and emotional quality, full of charm and individuality.";
+
   await generateCertificatePDF({
     name: favorite.name,
-    history: favorite.description || favorite.informativeDescription || "No history available.",
-    meaning: favorite.meaning || "No meaning available.",
-    logoUrl: "/nomena_logo.png", // ✅ lokalne logo w /public
+    history,
+    meaning,
+    logoUrl: "/nomena_logo.png",
   });
 
   // ❌ NIE zapisujemy localStorage ani nie blokujemy użytkownika
