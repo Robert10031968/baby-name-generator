@@ -41,6 +41,7 @@ const supabase = createClient(
 
 export default function BabyNameGenerator() {
   const [theme, setTheme] = useState("");
+  const [customNameMode, setCustomNameMode] = useState(false);
   const [gender, setGender] = useState("neutral");
   const [names, setNames] = useState<NameWithMeaning[]>([]);
   const [loading, setLoading] = useState(false);
@@ -74,40 +75,46 @@ export default function BabyNameGenerator() {
   }, []);
 
   const generateNames = async () => {
-    console.log("▶️ generateNames() wywołana. theme:", theme, "gender:", gender);
     if (!theme) return;
     setLoading(true);
     setNames([]);
     setError("");
 
     try {
-      const res = await fetch(
-        "https://babyname-agent-railway-production.up.railway.app/webhook/babyname",
-        {
+      if (customNameMode) {
+        const res = await fetch("/api/describe-name", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ theme, gender, count: 10 }),
-        }
-      );
+          body: JSON.stringify({ name: theme }),
+        });
 
-      console.log("✅ Fetch zakończony:", res.status);
-
-      if (!res.ok) {
-        throw new Error(`Server responded with status: ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log("📦 ODPOWIEDŹ Z API:", data);
-
-      if (Array.isArray(data.namesWithMeanings)) {
-        setNames(data.namesWithMeanings);
+        if (!res.ok) throw new Error(`Describe endpoint failed: ${res.status}`);
+        const data = await res.json();
+        setNames([{ name: theme, summary: data.description }]);
       } else {
-        setError("Unexpected response format. Please try again.");
+        const res = await fetch(
+          "https://babyname-agent-railway-production.up.railway.app/webhook/babyname",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ theme, gender, count: 10 }),
+          }
+        );
+
+        if (!res.ok) throw new Error(`Server responded with status: ${res.status}`);
+        const data = await res.json();
+        if (Array.isArray(data.namesWithMeanings)) {
+          setNames(data.namesWithMeanings);
+        } else {
+          setError("Unexpected response format. Please try again.");
+        }
       }
     } catch (error) {
-      console.error("❌ Błąd podczas generowania imion:", error);
+      console.error("❌ Error generating names:", error);
       setError("Failed to generate names. Please try again.");
     } finally {
       setLoading(false);
@@ -131,9 +138,7 @@ export default function BabyNameGenerator() {
       const result = await res.json();
 
       if (res.ok && result.success) {
-        toast({
-          title: `"${nameData.name}" added to favorites!`,
-        });
+        toast({ title: `"${nameData.name}" added to favorites!` });
         loadFavoritesFromSupabase();
       } else {
         throw new Error(result.error || "Unknown error");
@@ -188,6 +193,18 @@ export default function BabyNameGenerator() {
                 onChange={(e) => setTheme(e.target.value)}
                 className="mt-1"
               />
+              <div className="flex items-center gap-2 mt-3">
+                <input
+                  id="customName"
+                  type="checkbox"
+                  checked={customNameMode}
+                  onChange={() => setCustomNameMode(!customNameMode)}
+                  className="h-4 w-4 text-pink-600"
+                />
+                <label htmlFor="customName" className="text-sm text-gray-700">
+                  Use your own name to generate a story
+                </label>
+              </div>
             </div>
 
             <div>
@@ -270,4 +287,4 @@ export default function BabyNameGenerator() {
       </Tabs>
     </div>
   );
-} 
+}
