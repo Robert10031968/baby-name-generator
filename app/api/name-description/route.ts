@@ -34,7 +34,7 @@ Do not list bullet points. Write in flowing prose.
       },
       body: JSON.stringify({
         model: "gpt-4",
-        max_tokens: 1200,
+        max_tokens: 800,
         temperature: 0.7,
         messages: [
           {

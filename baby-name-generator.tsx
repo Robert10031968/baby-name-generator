@@ -82,7 +82,7 @@ export default function BabyNameGenerator() {
 
     try {
       if (customNameMode) {
-        const res = await fetch("/api/describe-name", {
+        const res = await fetch("/api/name-description", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
