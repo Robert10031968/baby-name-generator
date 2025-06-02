@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { generateCertificatePDF } from "@/lib/generateCertificatePDF";
 import { Button } from "@/components/ui/button";
 import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { generateCertificatePDF } from "@/lib/generateCertificatePDF";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,10 +18,10 @@ interface Favorite {
   description?: string;
   meaning?: string;
   origin?: string;
-  informativeDescription?: string;
-  poeticDescription?: string;
   history?: string;
   usedWiki?: boolean;
+  gender?: string;
+  theme?: string;
 }
 
 interface FavoritesListProps {
@@ -35,28 +35,41 @@ interface ExpandedState {
   [key: string]: boolean;
 }
 
+interface LocalStorageData {
+  [key: string]: {
+    history?: string;
+    meaning?: string;
+    usedWiki?: boolean;
+  };
+}
+
 export function FavoritesList({
   favorites,
   loading,
   onRefresh,
   onDelete,
 }: FavoritesListProps) {
-  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [expandedStates, setExpandedStates] = useState<ExpandedState>({});
-  const [localFavorites, setLocalFavorites] = useState<Record<string, Favorite>>({});
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+  const [localData, setLocalData] = useState<LocalStorageData>({});
 
   // Load saved descriptions from localStorage on mount
   useEffect(() => {
-    const savedDescriptions = localStorage.getItem('favoriteDescriptions');
-    if (savedDescriptions) {
-      setLocalFavorites(JSON.parse(savedDescriptions));
+    const savedData = localStorage.getItem('favoriteDescriptions');
+    if (savedData) {
+      try {
+        setLocalData(JSON.parse(savedData));
+      } catch (error) {
+        console.error('Failed to parse localStorage data:', error);
+        localStorage.removeItem('favoriteDescriptions');
+      }
     }
   }, []);
 
-  // Update localStorage whenever localFavorites changes
+  // Save to localStorage whenever localData changes
   useEffect(() => {
-    localStorage.setItem('favoriteDescriptions', JSON.stringify(localFavorites));
-  }, [localFavorites]);
+    localStorage.setItem('favoriteDescriptions', JSON.stringify(localData));
+  }, [localData]);
 
   const toggleDescription = (favoriteId: string) => {
     setExpandedStates(prev => ({
@@ -66,33 +79,31 @@ export function FavoritesList({
   };
 
   const hasFullDescription = (favorite: Favorite) => {
-    const localFavorite = localFavorites[favorite.id];
-    return localFavorite?.history && localFavorite.history.length > 100;
+    // Check both Supabase and localStorage data
+    const localFavoriteData = localData[favorite.id];
+    return (
+      (favorite.history && favorite.history.length > 100) ||
+      (localFavoriteData?.history && localFavoriteData.history.length > 100)
+    );
   };
 
-  const generateDescription = async (favorite: Favorite) => {
+  const getDescription = async (favorite: Favorite) => {
     setLoadingStates(prev => ({ ...prev, [favorite.id]: true }));
 
     try {
-      // First check if we already have the description saved
-      const localFavorite = localFavorites[favorite.id];
-      if (localFavorite?.history && localFavorite.history.length > 100) {
-        setExpandedStates(prev => ({ ...prev, [favorite.id]: true }));
-        return;
-      }
-
-      // Generate new description
       const res = await fetch("/api/name-description", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: favorite.name, short: false }),
+        body: JSON.stringify({ 
+          name: favorite.name, 
+          short: false 
+        }),
       });
 
-      if (!res.ok) throw new Error('Failed to generate description');
+      if (!res.ok) throw new Error('Failed to fetch description');
 
       const data = await res.json();
-      const updatedFavorite = {
-        ...favorite,
+      const descriptionData = {
         history: data.history || "",
         meaning: data.meaning || "",
         usedWiki: data.usedWiki || false,
@@ -102,28 +113,33 @@ export function FavoritesList({
       const { error } = await supabase
         .from('favorites')
         .update({
-          history: data.history,
-          meaning: data.meaning,
-          usedWiki: data.usedWiki
+          history: descriptionData.history,
+          meaning: descriptionData.meaning,
+          usedWiki: descriptionData.usedWiki
         })
         .eq('id', favorite.id);
 
       if (error) throw error;
 
-      // Update local state
-      setLocalFavorites(prev => ({
+      // Update localStorage
+      setLocalData(prev => ({
         ...prev,
-        [favorite.id]: updatedFavorite
+        [favorite.id]: descriptionData
       }));
 
       // Expand the description
-      setExpandedStates(prev => ({ ...prev, [favorite.id]: true }));
-      
-      toast({
-        title: "Description generated",
-        description: "The name description has been saved.",
-      });
+      setExpandedStates(prev => ({
+        ...prev,
+        [favorite.id]: true
+      }));
 
+      // Refresh favorites list to get updated data
+      onRefresh();
+
+      toast({
+        title: "Success",
+        description: "Description generated and saved.",
+      });
     } catch (error) {
       console.error("❌ Error generating description:", error);
       toast({
@@ -136,10 +152,14 @@ export function FavoritesList({
     }
   };
 
-  const handleDownloadCertificate = async (favorite: Favorite) => {
+  const handleGenerateCertificate = async (favorite: Favorite) => {
     try {
-      const localFavorite = localFavorites[favorite.id];
-      if (!localFavorite?.history) {
+      const localFavoriteData = localData[favorite.id];
+      const history = favorite.history || localFavoriteData?.history;
+      const meaning = favorite.meaning || localFavoriteData?.meaning;
+      const usedWiki = favorite.usedWiki || localFavoriteData?.usedWiki;
+
+      if (!history) {
         toast({
           title: "Error",
           description: "Please generate a description first.",
@@ -150,9 +170,9 @@ export function FavoritesList({
 
       await generateCertificatePDF({
         name: favorite.name,
-        history: localFavorite.history,
-        meaning: localFavorite.meaning || "",
-        usedWiki: localFavorite.usedWiki || false,
+        history,
+        meaning: meaning || "",
+        usedWiki: usedWiki || false,
       });
 
       toast({
@@ -192,10 +212,11 @@ export function FavoritesList({
         const isExpanded = expandedStates[favorite.id];
         const isLoading = loadingStates[favorite.id];
         const hasDescription = hasFullDescription(favorite);
-        const localFavorite = localFavorites[favorite.id];
+        const localFavoriteData = localData[favorite.id];
+        const description = favorite.history || localFavoriteData?.history;
 
         return (
-          <div key={favorite.id} className="border rounded-lg p-4 bg-white shadow-sm">
+          <div key={favorite.id} className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-lg font-medium text-gray-900">{favorite.name}</h3>
               <div className="flex gap-2">
@@ -211,14 +232,14 @@ export function FavoritesList({
 
             {/* Short description or initial state */}
             <p className="text-sm text-gray-600 mb-3">
-              {favorite.description || "Click 'Generate Description' to learn more about this name."}
+              {favorite.description || "Click 'Get Description' to learn more about this name."}
             </p>
 
             {/* Description controls */}
             <div className="space-y-3">
               {!hasDescription ? (
                 <Button
-                  onClick={() => generateDescription(favorite)}
+                  onClick={() => getDescription(favorite)}
                   disabled={isLoading}
                   className="w-full bg-blue-500 hover:bg-blue-600 text-white"
                 >
@@ -228,7 +249,7 @@ export function FavoritesList({
                       Generating Description...
                     </>
                   ) : (
-                    "Generate Description"
+                    "Get Description"
                   )}
                 </Button>
               ) : (
@@ -250,14 +271,14 @@ export function FavoritesList({
                     )}
                   </Button>
 
-                  {isExpanded && (
+                  {isExpanded && description && (
                     <div className="bg-blue-50 p-4 rounded-lg text-sm text-gray-700 border border-blue-100 whitespace-pre-line">
-                      {localFavorite?.history}
+                      {description}
                     </div>
                   )}
 
                   <Button
-                    onClick={() => handleDownloadCertificate(favorite)}
+                    onClick={() => handleGenerateCertificate(favorite)}
                     className="w-full bg-pink-500 hover:bg-pink-600 text-white"
                   >
                     Generate Certificate PDF
