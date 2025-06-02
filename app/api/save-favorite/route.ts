@@ -59,7 +59,7 @@ export async function POST(req: Request) {
         .select();
 
       if (error) {
-        console.error("❌ [UPDATE] Error updating favorite:", error.message || error);
+        console.error("❌ [INSERT] Error saving favorite:", error);
         return new Response(JSON.stringify({ error: "Failed to update favorite" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },
@@ -96,7 +96,7 @@ export async function POST(req: Request) {
       const { data, error } = await supabase.from("favorites").insert([newFavoriteData]).select();
 
       if (error) {
-        console.error("❌ [INSERT] Error saving favorite:", error.message || error);
+        console.error("❌ [INSERT] Error saving favorite:", error);
         return new Response(JSON.stringify({ error: "Failed to save favorite" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },
@@ -113,7 +113,7 @@ export async function POST(req: Request) {
       const { data, error } = await supabase.from("favorites").insert([favoriteData]).select();
 
       if (error) {
-        console.error("❌ [FALLBACK] Error saving favorite:", error.message || error);
+        console.error("❌ [INSERT] Error saving favorite:", error);
         return new Response(JSON.stringify({ error: "Failed to save favorite" }), {
           status: 500,
           headers: { "Content-Type": "application/json" },
@@ -126,7 +126,7 @@ export async function POST(req: Request) {
       });
     }
   } catch (error: any) {
-    console.error("❌ [CATCH] Unexpected error saving favorite:", error.message || error);
+    console.error("❌ [INSERT] Error saving favorite:", error);
     return new Response(JSON.stringify({ error: "Failed to save favorite" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },

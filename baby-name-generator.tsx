@@ -152,6 +152,17 @@ export default function BabyNameGenerator() {
     }
 
     try {
+      console.log("👉 Saving favorite:", {
+    name: nameData.name,
+    gender: gender || "neutral",
+    theme: theme || "",
+    user_email: "guest@example.com",
+    description: nameData.summary || "No description yet.",
+    history: nameData.history || "",
+    usedWiki: nameData.usedWiki || false,
+    meaning: nameData.summary || "No meaning yet.",
+  });
+
       const res = await fetch("/api/save-favorite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -167,6 +178,8 @@ export default function BabyNameGenerator() {
         }),
       });
 
+      console.log("👉 API response status:", res.status);
+       
       if (!res.ok) throw new Error("Failed to save favorite");
 
       const result = await res.json();
