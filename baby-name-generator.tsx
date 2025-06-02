@@ -141,31 +141,53 @@ export default function BabyNameGenerator() {
   };
 
   const toggleFavorite = async (nameData: NameWithMeaning) => {
-    const isFavorite = isNameFavorited(nameData.name);
-    
-    if (isFavorite) {
-      const favorite = favorites.find(f => f.name === nameData.name);
-      if (favorite) {
-        await handleDeleteFavorite(favorite.id);
-      }
-      return;
-    }
+  const isFavorite = isNameFavorited(nameData.name);
 
-    try {
-      const res = await fetch("/api/save-favorite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: nameData.name,
-          gender,
-          theme,
-          user_email: "guest@example.com",
-          description: nameData.summary || "",
-          history: nameData.history || "",
-          usedWiki: nameData.usedWiki || false,
-          meaning: nameData.summary || "",
-        }),
+  if (isFavorite) {
+    const favorite = favorites.find(f => f.name === nameData.name);
+    if (favorite) {
+      await handleDeleteFavorite(favorite.id);
+    }
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/save-favorite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: nameData.name,
+        gender: gender || "neutral",
+        theme: theme || "",
+        user_email: "guest@example.com",
+        description: nameData.summary || "No description yet.",
+        history: nameData.history || "",
+        usedWiki: nameData.usedWiki || false,
+        meaning: nameData.summary || "No meaning yet.",
+      }),
+    });
+
+    if (!res.ok) throw new Error("Failed to save favorite");
+
+    const result = await res.json();
+    if (result.success) {
+      toast({
+        title: "Success",
+        description: `"${nameData.name}" added to favorites!`,
       });
+      await loadFavoritesFromSupabase();
+    } else {
+      throw new Error(result.error || "Unknown error");
+    }
+  } catch (error) {
+    console.error("❌ Failed to save favorite:", error);
+    toast({
+      title: "Error",
+      description: "Failed to save favorite.",
+      variant: "destructive",
+    });
+  }
+};
 
       if (!res.ok) throw new Error("Failed to save favorite");
       
