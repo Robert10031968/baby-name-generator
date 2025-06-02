@@ -11,7 +11,6 @@ async function fetchWikipediaSummary(name: string): Promise<string | null> {
     if (!res.ok) return null;
 
     const data = await res.json();
-
     if (data.extract && !data.extract.includes("may refer to")) {
       return data.extract;
     }
@@ -24,27 +23,76 @@ async function fetchWikipediaSummary(name: string): Promise<string | null> {
 }
 
 export async function POST(req: Request) {
-  const { name } = await req.json();
+  const { name, short } = await req.json();
   const wikiText = await fetchWikipediaSummary(name);
 
   let prompt = "";
 
-  if (wikiText) {
-    prompt = `Using the following text from Wikipedia:\n\n"${wikiText}"\n\nGenerate a symbolic, poetic, and informative baby name description for the name "${name}". Include cultural, historical and emotional context.`;
-  } else {
-    prompt = `Generate a symbolic, poetic, and informative baby name description for the name "${name}". Include origin, meaning, and emotional tone. Length: approx. 600-800 characters.`;
+  if (short) {
+    prompt = wikiText
+  ? `Using the following text from Wikipedia:\n\n"${wikiText}"\n\nYou are an expert baby name specialist and creative writer.
+
+Your task is to generate a rich, poetic and informative description of the name "${name}" for new parents.
+
+The description should be approximately 150-200 words, written as one cohesive text without sections.
+
+Please include:
+- The cultural and linguistic origins of the name (if known)
+- Famous people who have this name (if known)
+- Symbolic and emotional associations of the name
+- Phonetic qualities and the impression the name makes
+- The personality traits typically associated with this name
+
+If the name is newly invented or of unknown origin, please write a creative poetic interpretation — inspiring and imaginative.
+
+Do NOT include any section titles.
+Write in a flowing, elegant style — engaging and visually beautiful.
+
+Begin.`
+  : `You are an expert baby name specialist and creative writer.
+
+Your task is to generate a rich, poetic and informative description of the name "${name}" for new parents.
+
+The description should be approximately 150-200 words, written as one cohesive text without sections.
+
+Please include:
+- The cultural and linguistic origins of the name (if known)
+- Famous people who have this name (if known)
+- Symbolic and emotional associations of the name
+- Phonetic qualities and the impression the name makes
+- The personality traits typically associated with this name
+
+If the name is newly invented or of unknown origin, please write a creative poetic interpretation — inspiring and imaginative.
+
+Do NOT include any section titles.
+Write in a flowing, elegant style — engaging and visually beautiful.
+
+Begin.`;
   }
 
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      max_tokens: 700,
+      temperature: short ? 0.4 : 0.7,
+      max_tokens: short ? 600 : 2000,
     });
 
-    const description = completion.choices[0].message.content;
-    return NextResponse.json({ description });
+    const output = completion.choices[0].message.content?.trim() || "";
+
+    if (short) {
+      return NextResponse.json({
+        meaning: output,
+        history: wikiText || "",
+        usedWiki: !!wikiText,
+      });
+    } else {
+      return NextResponse.json({
+        meaning: "",
+        history: output,
+        usedWiki: !!wikiText,
+      });
+    }
   } catch (err) {
     console.error("❌ OpenAI error:", err);
     return NextResponse.json({ error: "Failed to generate description." }, { status: 500 });

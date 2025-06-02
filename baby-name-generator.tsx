@@ -13,11 +13,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FavoritesList } from "./favorites-list";
 import { HeartButton } from "./heart-button";
 import { toast } from "@/components/ui/use-toast";
-import { Separator } from "@/components/ui/separator";
+import { generateCertificatePDF } from "@/lib/generateCertificatePDF";
 
 interface NameWithMeaning {
   name: string;
   summary?: string;
+  history?: string;
+  usedWiki?: boolean;
 }
 
 interface Favorite {
@@ -60,7 +62,6 @@ export default function BabyNameGenerator() {
       if (error) {
         console.error("❌ Failed to fetch favorites:", error.message);
       } else {
-        console.log("✅ Fetched favorites:", data);
         setFavorites(data || []);
       }
     } catch (err) {
@@ -84,23 +85,19 @@ export default function BabyNameGenerator() {
       if (customNameMode) {
         const res = await fetch("/api/name-description", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ name: theme }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: theme, short: true }),
         });
 
         if (!res.ok) throw new Error(`Describe endpoint failed: ${res.status}`);
         const data = await res.json();
-        setNames([{ name: theme, summary: data.description }]);
+        setNames([{ name: theme, summary: data.meaning, history: data.history, usedWiki: data.usedWiki }]);
       } else {
         const res = await fetch(
           "https://babyname-agent-railway-production.up.railway.app/webhook/babyname",
           {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ theme, gender, count: 10 }),
           }
         );
@@ -145,43 +142,69 @@ export default function BabyNameGenerator() {
       }
     } catch (error) {
       console.error("❌ Failed to save favorite:", error);
-      toast({
-        title: "Error",
-        description: "Failed to save favorite.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to save favorite.", variant: "destructive" });
     }
   };
+
+  const handleDownloadCertificate = async (nameData: NameWithMeaning) => {
+  let history = nameData.history || "";
+  let meaning = nameData.summary || "";
+  let usedWiki = nameData.usedWiki || false;
+
+  // UWAGA: jeśli jesteśmy w customNameMode → NA PEWNO trzeba pobrać pełny opis
+  const needsFullDescription = customNameMode || !history || history.length < 300;
+
+  if (needsFullDescription) {
+    console.log(`Fetching full description for "${nameData.name}" before generating certificate...`);
+
+    try {
+      const res = await fetch("/api/name-description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: nameData.name, short: false }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        history = data.history || "";
+        meaning = data.meaning || "";
+        usedWiki = data.usedWiki || false;
+
+        console.log("✅ Full description fetched for certificate.");
+      } else {
+        console.error("❌ Failed to fetch full description for certificate.");
+      }
+    } catch (err) {
+      console.error("❌ Error while fetching full description:", err);
+    }
+  }
+
+  // Teraz generujemy certyfikat — zawsze z pełnym opisem!
+  try {
+    await generateCertificatePDF({
+      name: nameData.name,
+      history,
+      meaning,
+      usedWiki,
+    });
+  } catch (error) {
+    console.error("❌ Failed to generate certificate:", error);
+  }
+};
 
   return (
     <div className="max-w-xl mx-auto p-6 bg-gradient-to-b from-pink-50 to-blue-50 rounded-xl shadow-sm">
       <h1 className="text-3xl font-bold mb-4 text-pink-600">AI Baby Name Generator</h1>
-      <p className="text-blue-700 mb-6">
-        Discover perfect baby names with short insights. Add your favorites for more!
-      </p>
+      <p className="text-blue-700 mb-6">Discover perfect baby names with short insights. Add your favorites for more!</p>
 
       <Tabs defaultValue="generator" className="mb-6">
         <TabsList className="grid w-full grid-cols-2 bg-blue-100">
-          <TabsTrigger
-            value="generator"
-            className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-700"
-          >
-            Generate Names
-          </TabsTrigger>
-          <TabsTrigger
-            value="favorites"
-            className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-700"
-          >
-            Favorites
-          </TabsTrigger>
+          <TabsTrigger value="generator" className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-700">Generate Names</TabsTrigger>
+          <TabsTrigger value="favorites" className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-700">Favorites</TabsTrigger>
         </TabsList>
 
         <TabsContent value="generator">
-          {error && (
-            <Alert variant="destructive" className="mb-6">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+          {error && <Alert variant="destructive" className="mb-6"><AlertDescription>{error}</AlertDescription></Alert>}
 
           <div className="space-y-6">
             <div>
@@ -209,11 +232,7 @@ export default function BabyNameGenerator() {
 
             <div>
               <Label>Gender</Label>
-              <RadioGroup
-                value={gender}
-                onValueChange={setGender}
-                className="flex space-x-4 mt-2"
-              >
+              <RadioGroup value={gender} onValueChange={setGender} className="flex space-x-4 mt-2">
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="boy" id="boy" />
                   <Label htmlFor="boy">Boy</Label>
@@ -229,11 +248,7 @@ export default function BabyNameGenerator() {
               </RadioGroup>
             </div>
 
-            <Button
-              onClick={generateNames}
-              disabled={loading || !theme}
-              className="w-full bg-pink-500 hover:bg-pink-600 text-white"
-            >
+            <Button onClick={generateNames} disabled={loading || !theme} className="w-full bg-pink-500 hover:bg-pink-600 text-white">
               {loading ? (
                 <div className="flex items-center justify-center">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
