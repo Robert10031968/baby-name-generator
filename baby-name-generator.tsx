@@ -13,7 +13,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FavoritesList } from "./favorites-list";
 import { HeartButton } from "./heart-button";
 import { toast } from "@/components/ui/use-toast";
-import { generateCertificatePDF } from "@/lib/generateCertificatePDF";
 
 interface NameWithMeaning {
   name: string;
@@ -31,9 +30,9 @@ interface Favorite {
   user_email?: string;
   meaning?: string;
   origin?: string;
-  informativeDescription?: string;
-  poeticDescription?: string;
   description?: string;
+  history?: string;
+  usedWiki?: boolean;
 }
 
 const supabase = createClient(
@@ -59,13 +58,15 @@ export default function BabyNameGenerator() {
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("❌ Failed to fetch favorites:", error.message);
-      } else {
-        setFavorites(data || []);
-      }
+      if (error) throw error;
+      setFavorites(data || []);
     } catch (err) {
-      console.error("❌ Unexpected error:", err);
+      console.error("❌ Failed to fetch favorites:", err);
+      toast({
+        title: "Error",
+        description: "Failed to load favorites. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setFavoritesLoading(false);
     }
@@ -76,7 +77,15 @@ export default function BabyNameGenerator() {
   }, []);
 
   const generateNames = async () => {
-    if (!theme) return;
+    if (!theme) {
+      toast({
+        title: "Please enter a theme",
+        description: "Enter a theme or inspiration to generate names.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     setNames([]);
     setError("");
@@ -91,7 +100,12 @@ export default function BabyNameGenerator() {
 
         if (!res.ok) throw new Error(`Describe endpoint failed: ${res.status}`);
         const data = await res.json();
-        setNames([{ name: theme, summary: data.meaning, history: data.history, usedWiki: data.usedWiki }]);
+        setNames([{ 
+          name: theme, 
+          summary: data.meaning, 
+          history: data.history, 
+          usedWiki: data.usedWiki 
+        }]);
       } else {
         const res = await fetch(
           "https://babyname-agent-railway-production.up.railway.app/webhook/babyname",
@@ -104,21 +118,39 @@ export default function BabyNameGenerator() {
 
         if (!res.ok) throw new Error(`Server responded with status: ${res.status}`);
         const data = await res.json();
-        if (Array.isArray(data.namesWithMeanings)) {
-          setNames(data.namesWithMeanings);
-        } else {
-          setError("Unexpected response format. Please try again.");
+        if (!Array.isArray(data.namesWithMeanings)) {
+          throw new Error("Unexpected response format");
         }
+        setNames(data.namesWithMeanings);
       }
     } catch (error) {
       console.error("❌ Error generating names:", error);
       setError("Failed to generate names. Please try again.");
+      toast({
+        title: "Error",
+        description: "Failed to generate names. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const saveFavorite = async (nameData: NameWithMeaning) => {
+  const isNameFavorited = (name: string) => {
+    return favorites.some(f => f.name === name);
+  };
+
+  const toggleFavorite = async (nameData: NameWithMeaning) => {
+    const isFavorite = isNameFavorited(nameData.name);
+    
+    if (isFavorite) {
+      const favorite = favorites.find(f => f.name === nameData.name);
+      if (favorite) {
+        await handleDeleteFavorite(favorite.id);
+      }
+      return;
+    }
+
     try {
       const res = await fetch("/api/save-favorite", {
         method: "POST",
@@ -129,68 +161,68 @@ export default function BabyNameGenerator() {
           theme,
           user_email: "guest@example.com",
           description: nameData.summary || "",
+          history: nameData.history || "",
+          usedWiki: nameData.usedWiki || false,
+          meaning: nameData.summary || "",
         }),
       });
 
+      if (!res.ok) throw new Error("Failed to save favorite");
+      
       const result = await res.json();
-
-      if (res.ok && result.success) {
-        toast({ title: `"${nameData.name}" added to favorites!` });
-        loadFavoritesFromSupabase();
+      if (result.success) {
+        toast({ 
+          title: "Success", 
+          description: `"${nameData.name}" added to favorites!` 
+        });
+        await loadFavoritesFromSupabase();
       } else {
         throw new Error(result.error || "Unknown error");
       }
     } catch (error) {
       console.error("❌ Failed to save favorite:", error);
-      toast({ title: "Error", description: "Failed to save favorite.", variant: "destructive" });
+      toast({ 
+        title: "Error", 
+        description: "Failed to save favorite.", 
+        variant: "destructive" 
+      });
     }
   };
 
-  const handleDownloadCertificate = async (nameData: NameWithMeaning) => {
-  let history = nameData.history || "";
-  let meaning = nameData.summary || "";
-  let usedWiki = nameData.usedWiki || false;
-
-  // UWAGA: jeśli jesteśmy w customNameMode → NA PEWNO trzeba pobrać pełny opis
-  const needsFullDescription = customNameMode || !history || history.length < 300;
-
-  if (needsFullDescription) {
-    console.log(`Fetching full description for "${nameData.name}" before generating certificate...`);
-
+  const handleDeleteFavorite = async (favoriteId: string) => {
     try {
-      const res = await fetch("/api/name-description", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: nameData.name, short: false }),
-      });
+      // Delete from Supabase
+      const { error } = await supabase
+        .from("favorites")
+        .delete()
+        .eq("id", favoriteId);
 
-      if (res.ok) {
-        const data = await res.json();
-        history = data.history || "";
-        meaning = data.meaning || "";
-        usedWiki = data.usedWiki || false;
+      if (error) throw error;
 
-        console.log("✅ Full description fetched for certificate.");
-      } else {
-        console.error("❌ Failed to fetch full description for certificate.");
+      // Update local state
+      setFavorites(prev => prev.filter(f => f.id !== favoriteId));
+      
+      // Clear from localStorage (if exists)
+      const savedDescriptions = localStorage.getItem('favoriteDescriptions');
+      if (savedDescriptions) {
+        const descriptions = JSON.parse(savedDescriptions);
+        delete descriptions[favoriteId];
+        localStorage.setItem('favoriteDescriptions', JSON.stringify(descriptions));
       }
-    } catch (err) {
-      console.error("❌ Error while fetching full description:", err);
-    }
-  }
 
-  // Teraz generujemy certyfikat — zawsze z pełnym opisem!
-  try {
-    await generateCertificatePDF({
-      name: nameData.name,
-      history,
-      meaning,
-      usedWiki,
-    });
-  } catch (error) {
-    console.error("❌ Failed to generate certificate:", error);
-  }
-};
+      toast({ 
+        title: "Success",
+        description: "Name removed from favorites"
+      });
+    } catch (error) {
+      console.error("❌ Failed to delete favorite:", error);
+      toast({
+        title: "Error",
+        description: "Failed to remove favorite. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <div className="max-w-xl mx-auto p-6 bg-gradient-to-b from-pink-50 to-blue-50 rounded-xl shadow-sm">
@@ -199,12 +231,20 @@ export default function BabyNameGenerator() {
 
       <Tabs defaultValue="generator" className="mb-6">
         <TabsList className="grid w-full grid-cols-2 bg-blue-100">
-          <TabsTrigger value="generator" className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-700">Generate Names</TabsTrigger>
-          <TabsTrigger value="favorites" className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-700">Favorites</TabsTrigger>
+          <TabsTrigger value="generator" className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-700">
+            Generate Names
+          </TabsTrigger>
+          <TabsTrigger value="favorites" className="data-[state=active]:bg-pink-100 data-[state=active]:text-pink-700">
+            Favorites ({favorites.length})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="generator">
-          {error && <Alert variant="destructive" className="mb-6"><AlertDescription>{error}</AlertDescription></Alert>}
+          {error && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
           <div className="space-y-6">
             <div>
@@ -248,7 +288,11 @@ export default function BabyNameGenerator() {
               </RadioGroup>
             </div>
 
-            <Button onClick={generateNames} disabled={loading || !theme} className="w-full bg-pink-500 hover:bg-pink-600 text-white">
+            <Button
+              onClick={generateNames}
+              disabled={loading || !theme}
+              className="w-full bg-pink-500 hover:bg-pink-600 text-white"
+            >
               {loading ? (
                 <div className="flex items-center justify-center">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -264,11 +308,15 @@ export default function BabyNameGenerator() {
             <div className="mt-8 space-y-4">
               <h2 className="text-xl font-semibold">Suggested Names</h2>
               {names.map((nameData, index) => (
-                <Card key={index} className="border-blue-100 hover:shadow-md">
+                <Card key={index} className="border-blue-100 hover:shadow-md transition-shadow">
                   <CardContent className="p-4">
                     <div className="flex justify-between items-center mb-2">
-                      <h3 className="text-lg font-medium">{nameData.name}</h3>
-                      <HeartButton isFavorite={false} onClick={() => saveFavorite(nameData)} />
+                      <h3 className="text-lg font-medium text-gray-900">{nameData.name}</h3>
+                      <HeartButton
+                        isFavorite={isNameFavorited(nameData.name)}
+                        onClick={() => toggleFavorite(nameData)}
+                        size="md"
+                      />
                     </div>
                     {nameData.summary && (
                       <div className="bg-pink-50 rounded-md p-3 text-sm border border-pink-100">
@@ -288,15 +336,7 @@ export default function BabyNameGenerator() {
             favorites={favorites}
             loading={favoritesLoading}
             onRefresh={loadFavoritesFromSupabase}
-            onDelete={async (id: string) => {
-              const { error } = await supabase.from("favorites").delete().eq("id", id);
-              if (!error) {
-                loadFavoritesFromSupabase();
-              } else {
-                console.error("❌ Failed to delete favorite:", error.message);
-              }
-            }}
-            usingLocalStorage={false}
+            onDelete={handleDeleteFavorite}
           />
         </TabsContent>
       </Tabs>
