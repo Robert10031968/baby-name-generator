@@ -31,60 +31,47 @@ interface FavoritesListProps {
   onDelete: (id: string) => void;
 }
 
-interface ExpandedState {
-  [key: string]: boolean;
-}
-
-interface LocalStorageData {
-  [key: string]: {
-    history?: string;
-    meaning?: string;
-    usedWiki?: boolean;
-  };
-}
-
 export function FavoritesList({
   favorites,
   loading,
   onRefresh,
   onDelete,
 }: FavoritesListProps) {
-  const [expandedStates, setExpandedStates] = useState<ExpandedState>({});
+  const [expandedStates, setExpandedStates] = useState<Record<string, boolean>>({});
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
-  const [localData, setLocalData] = useState<LocalStorageData>({});
+  const [localData, setLocalData] = useState<Record<string, { history?: string; meaning?: string; usedWiki?: boolean }>>({});
 
   // Load saved descriptions from localStorage on mount
   useEffect(() => {
-    const savedData = localStorage.getItem('favoriteDescriptions');
+    const savedData = localStorage.getItem("favoriteDescriptions");
     if (savedData) {
       try {
         setLocalData(JSON.parse(savedData));
       } catch (error) {
-        console.error('Failed to parse localStorage data:', error);
-        localStorage.removeItem('favoriteDescriptions');
+        console.error("Failed to parse localStorage data:", error);
+        localStorage.removeItem("favoriteDescriptions");
       }
     }
   }, []);
 
   // Save to localStorage whenever localData changes
   useEffect(() => {
-    localStorage.setItem('favoriteDescriptions', JSON.stringify(localData));
+    localStorage.setItem("favoriteDescriptions", JSON.stringify(localData));
   }, [localData]);
 
-  const toggleDescription = (favoriteId: string) => {
-    setExpandedStates(prev => ({
-      ...prev,
-      [favoriteId]: !prev[favoriteId]
-    }));
-  };
-
   const hasFullDescription = (favorite: Favorite) => {
-    // Check both Supabase and localStorage data
     const localFavoriteData = localData[favorite.id];
     return (
       (favorite.history && favorite.history.length > 100) ||
       (localFavoriteData?.history && localFavoriteData.history.length > 100)
     );
+  };
+
+  const toggleDescription = (favoriteId: string) => {
+    setExpandedStates(prev => ({
+      ...prev,
+      [favoriteId]: !prev[favoriteId],
+    }));
   };
 
   const getDescription = async (favorite: Favorite) => {
@@ -94,15 +81,16 @@ export function FavoritesList({
       const res = await fetch("/api/name-description", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          name: favorite.name, 
-          short: false 
+        body: JSON.stringify({
+          name: favorite.name,
+          short: false,
         }),
       });
 
-      if (!res.ok) throw new Error('Failed to fetch description');
+      if (!res.ok) throw new Error("Failed to fetch description");
 
       const data = await res.json();
+
       const descriptionData = {
         history: data.history || "",
         meaning: data.meaning || "",
@@ -111,29 +99,29 @@ export function FavoritesList({
 
       // Update Supabase
       const { error } = await supabase
-        .from('favorites')
+        .from("favorites")
         .update({
           history: descriptionData.history,
           meaning: descriptionData.meaning,
-          usedWiki: descriptionData.usedWiki
+          usedWiki: descriptionData.usedWiki,
         })
-        .eq('id', favorite.id);
+        .eq("id", favorite.id);
 
       if (error) throw error;
 
-      // Update localStorage
+      // Update localData
       setLocalData(prev => ({
         ...prev,
-        [favorite.id]: descriptionData
+        [favorite.id]: descriptionData,
       }));
 
-      // Expand the description
+      // Expand description
       setExpandedStates(prev => ({
         ...prev,
-        [favorite.id]: true
+        [favorite.id]: true,
       }));
 
-      // Refresh favorites list to get updated data
+      // Refresh favorites from Supabase
       onRefresh();
 
       toast({
@@ -145,7 +133,7 @@ export function FavoritesList({
       toast({
         title: "Error",
         description: "Failed to generate description. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setLoadingStates(prev => ({ ...prev, [favorite.id]: false }));
@@ -163,7 +151,7 @@ export function FavoritesList({
         toast({
           title: "Error",
           description: "Please generate a description first.",
-          variant: "destructive"
+          variant: "destructive",
         });
         return;
       }
@@ -184,7 +172,7 @@ export function FavoritesList({
       toast({
         title: "Error",
         description: "Failed to generate certificate. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -208,7 +196,7 @@ export function FavoritesList({
 
   return (
     <div className="space-y-4">
-      {favorites.map((favorite) => {
+      {favorites.map(favorite => {
         const isExpanded = expandedStates[favorite.id];
         const isLoading = loadingStates[favorite.id];
         const hasDescription = hasFullDescription(favorite);
@@ -219,23 +207,15 @@ export function FavoritesList({
           <div key={favorite.id} className="border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
             <div className="flex justify-between items-center mb-2">
               <h3 className="text-lg font-medium text-gray-900">{favorite.name}</h3>
-              <div className="flex gap-2">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => onDelete(favorite.id)}
-                >
-                  Delete
-                </Button>
-              </div>
+              <Button variant="destructive" size="sm" onClick={() => onDelete(favorite.id)}>
+                Delete
+              </Button>
             </div>
 
-            {/* Short description or initial state */}
             <p className="text-sm text-gray-600 mb-3">
               {favorite.description || "Click 'Get Description' to learn more about this name."}
             </p>
 
-            {/* Description controls */}
             <div className="space-y-3">
               {!hasDescription ? (
                 <Button
