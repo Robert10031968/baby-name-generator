@@ -141,61 +141,39 @@ export default function BabyNameGenerator() {
   };
 
   const toggleFavorite = async (nameData: NameWithMeaning) => {
-  const isFavorite = isNameFavorited(nameData.name);
+    const isFavorite = isNameFavorited(nameData.name);
 
-  if (isFavorite) {
-    const favorite = favorites.find(f => f.name === nameData.name);
-    if (favorite) {
-      await handleDeleteFavorite(favorite.id);
+    if (isFavorite) {
+      const favorite = favorites.find(f => f.name === nameData.name);
+      if (favorite) {
+        await handleDeleteFavorite(favorite.id);
+      }
+      return;
     }
-    return;
-  }
 
-  try {
-    const res = await fetch("/api/save-favorite", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: nameData.name,
-        gender: gender || "neutral",
-        theme: theme || "",
-        user_email: "guest@example.com",
-        description: nameData.summary || "No description yet.",
-        history: nameData.history || "",
-        usedWiki: nameData.usedWiki || false,
-        meaning: nameData.summary || "No meaning yet.",
-      }),
-    });
-
-    if (!res.ok) throw new Error("Failed to save favorite");
-
-    const result = await res.json();
-    if (result.success) {
-      toast({
-        title: "Success",
-        description: `"${nameData.name}" added to favorites!`,
+    try {
+      const res = await fetch("/api/save-favorite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: nameData.name,
+          gender: gender || "neutral",
+          theme: theme || "",
+          user_email: "guest@example.com",
+          description: nameData.summary || "No description yet.",
+          history: nameData.history || "",
+          usedWiki: nameData.usedWiki || false,
+          meaning: nameData.summary || "No meaning yet.",
+        }),
       });
-      await loadFavoritesFromSupabase();
-    } else {
-      throw new Error(result.error || "Unknown error");
-    }
-  } catch (error) {
-    console.error("❌ Failed to save favorite:", error);
-    toast({
-      title: "Error",
-      description: "Failed to save favorite.",
-      variant: "destructive",
-    });
-  }
-};
 
       if (!res.ok) throw new Error("Failed to save favorite");
-      
+
       const result = await res.json();
       if (result.success) {
-        toast({ 
-          title: "Success", 
-          description: `"${nameData.name}" added to favorites!` 
+        toast({
+          title: "Success",
+          description: `"${nameData.name}" added to favorites!`,
         });
         await loadFavoritesFromSupabase();
       } else {
@@ -203,10 +181,10 @@ export default function BabyNameGenerator() {
       }
     } catch (error) {
       console.error("❌ Failed to save favorite:", error);
-      toast({ 
-        title: "Error", 
-        description: "Failed to save favorite.", 
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: "Failed to save favorite.",
+        variant: "destructive",
       });
     }
   };
