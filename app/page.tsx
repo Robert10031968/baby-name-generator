@@ -2,6 +2,7 @@
 
 import BabyNameGenerator from "@/baby-name-generator";
 
+<img src="/certificate-background.png" style={{ display: 'none' }} alt="Preload Background" />
 
 export default function Home() {
   return (

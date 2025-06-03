@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
-import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { generateCertificatePDF } from "@/lib/generateCertificatePDF";
 
@@ -37,8 +37,6 @@ export function FavoritesList({
   onRefresh,
   onDelete,
 }: FavoritesListProps) {
-  const [expandedStates, setExpandedStates] = useState<Record<string, boolean>>({});
-  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   const [localData, setLocalData] = useState<Record<string, { history?: string; meaning?: string; usedWiki?: boolean }>>({});
 
   // Load saved descriptions from localStorage on mount
@@ -59,123 +57,46 @@ export function FavoritesList({
     localStorage.setItem("favoriteDescriptions", JSON.stringify(localData));
   }, [localData]);
 
-  const hasFullDescription = (favorite: Favorite) => {
-    const localFavoriteData = localData[favorite.id];
-    return (
-      (favorite.history && favorite.history.length > 100) ||
-      (localFavoriteData?.history && localFavoriteData.history.length > 100)
-    );
-  };
-
-  const toggleDescription = (favoriteId: string) => {
-    setExpandedStates(prev => ({
-      ...prev,
-      [favoriteId]: !prev[favoriteId],
-    }));
-  };
-
-  const getDescription = async (favorite: Favorite) => {
-    setLoadingStates(prev => ({ ...prev, [favorite.id]: true }));
-
-    try {
-      const res = await fetch("/api/name-description", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: favorite.name,
-          short: false,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Failed to fetch description");
-
-      const data = await res.json();
-
-      const descriptionData = {
-        history: data.history || "",
-        meaning: data.meaning || "",
-        usedWiki: data.usedWiki || false,
-      };
-
-      // Update Supabase
-      const { error } = await supabase
-        .from("favorites")
-        .update({
-          history: descriptionData.history,
-          meaning: descriptionData.meaning,
-          usedWiki: descriptionData.usedWiki,
-        })
-        .eq("id", favorite.id);
-
-      if (error) throw error;
-
-      // Update localData
-      setLocalData(prev => ({
-        ...prev,
-        [favorite.id]: descriptionData,
-      }));
-
-      // Expand description
-      setExpandedStates(prev => ({
-        ...prev,
-        [favorite.id]: true,
-      }));
-
-      // Refresh favorites from Supabase
-      onRefresh();
-
-      toast({
-        title: "Success",
-        description: "Description generated and saved.",
-      });
-    } catch (error) {
-      console.error("❌ Error generating description:", error);
-      toast({
-        title: "Error",
-        description: "Failed to generate description. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingStates(prev => ({ ...prev, [favorite.id]: false }));
-    }
-  };
-
   const handleGenerateCertificate = async (favorite: Favorite) => {
-    try {
-      const localFavoriteData = localData[favorite.id];
-      const history = favorite.history || localFavoriteData?.history;
-      const meaning = favorite.meaning || localFavoriteData?.meaning;
-      const usedWiki = favorite.usedWiki || localFavoriteData?.usedWiki;
+  console.log("➡️ handleGenerateCertificate clicked for:", favorite.name);
 
-      if (!history) {
-        toast({
-          title: "Error",
-          description: "Please generate a description first.",
-          variant: "destructive",
-        });
-        return;
-      }
+  try {
+    const localFavoriteData = localData[favorite.id];
+    const history = favorite.history || localFavoriteData?.history;
+    const meaning = favorite.meaning || localFavoriteData?.meaning;
+    const usedWiki = favorite.usedWiki || localFavoriteData?.usedWiki;
 
-      await generateCertificatePDF({
-        name: favorite.name,
-        history,
-        meaning: meaning || "",
-        usedWiki: usedWiki || false,
-      });
+    console.log("➡️ Data for certificate:", { history, meaning, usedWiki });
 
-      toast({
-        title: "Success",
-        description: "Certificate PDF has been generated.",
-      });
-    } catch (error) {
-      console.error("❌ Failed to generate certificate:", error);
-      toast({
-        title: "Error",
-        description: "Failed to generate certificate. Please try again.",
-        variant: "destructive",
-      });
+    if (!history && !meaning) {
+    toast({
+    title: "Error",
+    description: "No description available for certificate.",
+    variant: "destructive",
+    });
+    return;
     }
-  };
+
+    await generateCertificatePDF({
+    name: favorite.name,
+    history: history || "",  // nawet jak braknie, damy pusty string
+    meaning: meaning || "",  // mamy meaning → tu OK
+    usedWiki: usedWiki || false,
+    });
+
+    toast({
+      title: "Success",
+      description: "Certificate PDF has been generated.",
+    });
+  } catch (error) {
+    console.error("❌ Failed to generate certificate:", error);
+    toast({
+      title: "Error",
+      description: "Failed to generate certificate. Please try again.",
+      variant: "destructive",
+    });
+  }
+};
 
   if (loading) {
     return (
@@ -197,9 +118,6 @@ export function FavoritesList({
   return (
     <div className="space-y-4">
       {favorites.map(favorite => {
-        const isExpanded = expandedStates[favorite.id];
-        const isLoading = loadingStates[favorite.id];
-        const hasDescription = hasFullDescription(favorite);
         const localFavoriteData = localData[favorite.id];
         const description = favorite.history || localFavoriteData?.history;
 
@@ -213,59 +131,21 @@ export function FavoritesList({
             </div>
 
             <p className="text-sm text-gray-600 mb-3">
-              {favorite.description || "Click 'Get Description' to learn more about this name."}
+              {favorite.description || "No description available."}
             </p>
 
-            <div className="space-y-3">
-              {!hasDescription ? (
-                <Button
-                  onClick={() => getDescription(favorite)}
-                  disabled={isLoading}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating Description...
-                    </>
-                  ) : (
-                    "Get Description"
-                  )}
-                </Button>
-              ) : (
-                <>
-                  <Button
-                    onClick={() => toggleDescription(favorite.id)}
-                    className="w-full bg-blue-100 hover:bg-blue-200 text-blue-700"
-                  >
-                    {isExpanded ? (
-                      <>
-                        <ChevronUp className="mr-2 h-4 w-4" />
-                        Hide Description
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown className="mr-2 h-4 w-4" />
-                        Show Description
-                      </>
-                    )}
-                  </Button>
+            {description && (
+              <div className="bg-blue-50 p-4 rounded-lg text-sm text-gray-700 border border-blue-100 whitespace-pre-line mb-3">
+                {description}
+              </div>
+            )}
 
-                  {isExpanded && description && (
-                    <div className="bg-blue-50 p-4 rounded-lg text-sm text-gray-700 border border-blue-100 whitespace-pre-line">
-                      {description}
-                    </div>
-                  )}
-
-                  <Button
-                    onClick={() => handleGenerateCertificate(favorite)}
-                    className="w-full bg-pink-500 hover:bg-pink-600 text-white"
-                  >
-                    Generate Certificate PDF
-                  </Button>
-                </>
-              )}
-            </div>
+            <Button
+              onClick={() => handleGenerateCertificate(favorite)}
+              className="w-full bg-pink-500 hover:bg-pink-600 text-white"
+            >
+              Download Name Certificate PDF
+            </Button>
           </div>
         );
       })}
